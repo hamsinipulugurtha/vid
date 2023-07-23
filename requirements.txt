@@ -1,0 +1,11 @@
+fastapi[all]
+Jinja2==3.0.3
+uvicorn
+google.cloud.storage
+pillow
+imageio
+datetime
+matplotlib
+opencv-python-headless
+face_recognition
+numpy
