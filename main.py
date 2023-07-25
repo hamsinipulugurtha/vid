@@ -20,35 +20,54 @@ square_size = 500
 with open('model.pkl', 'rb') as f:
     known_faces, known_names = pickle.load(f)
 
-face_cascade=cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
+face_cascade=cv2.CascadeClassifier("/workspace/vid/haarcascade_frontalface_default.xml")
+app = FastAPI()
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
-cap=cv2.VideoCapture(0)
-while True:
-    ret,img=cap.read()
-    gray=cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
-    faces=face_cascade.detectMultiScale(gray,1.3,5)
-    for(x,y,w,h) in faces:
-        cv2.rectangle(img,(x,y),(x+w,y+h),(100,0,100))
-        f_gray=gray[y:y+h,x:x+w]
-        f_color=img[y:y+h,x:x+w]
-        face_locations = face_recognition.face_locations(img)
-        face_encodings = face_recognition.face_encodings(img, face_locations)
-        if len(face_locations) == 0:
-            continue
-        for face_encoding, face_location in zip(face_encodings, face_locations):
-        # Compare face encoding with the known faces
-            matches = face_recognition.compare_faces(known_faces, face_encoding)
-            name = "Unknown"
-        if len(matches) > 0:
-            face_distances = face_recognition.face_distance(known_faces, face_encoding)
-            best_match_index = np.argmin(face_distances)
-            if matches[best_match_index]:
-                name = known_names[best_match_index]
-                print(name," ",datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-                #attendance_dict[name] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    cv2.imshow("Image",img)
+templates = Jinja2Templates(directory="templates")
 
-    if cv2.waitKey(20) & 0xFF==ord("q"):
-        break
-cap.release()
-cv2.destroyAllWindows()
+@app.get('/')  
+def index(request : Request):
+    context={"request" : request,
+             "predictedtopic":"No Video"}
+    return templates.TemplateResponse("index.html",context) 
+
+@app.post("/Submit Query", response_class=HTMLResponse)
+async def upload_video(request : Request):
+    b=recognize_faces()
+    context = {
+        "request": request, 
+        "b": b
+    }
+    return templates.TemplateResponse("index.html",context)
+def recognize_faces():
+    cap=cv2.VideoCapture(0)
+    while True:
+        ret,img=cap.read()
+        gray=cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+        faces=face_cascade.detectMultiScale(gray,1.3,5)
+        for(x,y,w,h) in faces:
+            cv2.rectangle(img,(x,y),(x+w,y+h),(100,0,100))
+            f_gray=gray[y:y+h,x:x+w]
+            f_color=img[y:y+h,x:x+w]
+            face_locations = face_recognition.face_locations(img)
+            face_encodings = face_recognition.face_encodings(img, face_locations)
+            if len(face_locations) == 0:
+                continue
+            for face_encoding, face_location in zip(face_encodings, face_locations):
+            # Compare face encoding with the known faces
+                matches = face_recognition.compare_faces(known_faces, face_encoding)
+                name = "Unknown"
+            if len(matches) > 0:
+                face_distances = face_recognition.face_distance(known_faces, face_encoding)
+                best_match_index = np.argmin(face_distances)
+                if matches[best_match_index]:
+                    name = known_names[best_match_index]
+                    print(name," ",datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                    #attendance_dict[name] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        cv2.imshow("Image",img)
+
+        if cv2.waitKey(20) & 0xFF==ord("q"):
+            break
+    cap.release()
+    cv2.destroyAllWindows()
